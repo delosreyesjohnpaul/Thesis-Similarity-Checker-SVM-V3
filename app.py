@@ -6,6 +6,7 @@ import pandas as pd
 from PyPDF2 import PdfReader
 import os
 from werkzeug.utils import secure_filename
+import pymysql
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -14,8 +15,33 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 model = pickle.load(open('model.pkl', 'rb'))
 tfidf_vectorizer = pickle.load(open('tfidf_vectorizer.pkl', 'rb'))
 
-# Load the dataset
-data = pd.read_csv('dataset2.csv')
+# MySQL database connection
+def get_database_data():
+    """Fetch data from MySQL database."""
+    connection = pymysql.connect(
+        host='localhost',
+        user='root',
+        password='',
+        database='similaritydb'
+    )
+    cursor = connection.cursor()
+
+    # Execute the query to get data
+    query = "SELECT * FROM similaritydataset"
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    # Fetch column names and create a DataFrame
+    columns = [col[0] for col in cursor.description]
+    data = pd.DataFrame(rows, columns=columns)
+
+    # Close the connection
+    connection.close()
+
+    return data
+
+# Fetch the dataset from MySQL
+data = get_database_data()
 
 # Preprocess the texts in the dataset for similarity calculations
 preprocessed_texts = tfidf_vectorizer.transform(data['plagiarized_text'].fillna(""))
