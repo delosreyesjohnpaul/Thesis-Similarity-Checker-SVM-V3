@@ -84,11 +84,10 @@ def detect(input_text):
     if prediction[0] == 0:
         return "No Plagiarism Detected", []
 
-    # If plagiarism is detected, calculate similarity scores
+    # Calculate similarity scores for plagiarism
     cosine_similarities = cosine_similarity(vectorized_text, preprocessed_texts)[0]
     plagiarism_sources = []
 
-    # Adjusted threshold for more accurate results
     threshold = 0.35
     for i, similarity in enumerate(cosine_similarities):
         if similarity > threshold:
@@ -96,12 +95,11 @@ def detect(input_text):
             source_title = data['source_text'].iloc[i]
             source_text = data['plagiarized_text'].iloc[i]
 
-            # Extract snippets from the source text
+            # Extract snippets of plagiarized text from the source
             matching_snippets = get_snippets(source_text, input_text)
 
             plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
 
-    # Sort by similarity percentage in descending order
     plagiarism_sources.sort(key=lambda x: x[1], reverse=True)
 
     detection_result = "Plagiarism Detected" if plagiarism_sources else "No Plagiarism Detected"
