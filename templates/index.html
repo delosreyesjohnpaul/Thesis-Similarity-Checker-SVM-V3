@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Research Output Similarity Checker</title>
+    <title>CCSICT Research Output Similarity Checker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,6 +30,9 @@
 
         h1 {
             margin-bottom: 20px;
+            color: #0056b3;
+            font-size: 24px;
+            font-weight: bold;
         }
 
         textarea {
@@ -40,6 +43,7 @@
             border: 1px solid #cccccc;
             border-radius: 5px;
             display: block;
+            resize: none;
         }
 
         .file-input-container {
@@ -51,6 +55,7 @@
 
         .form-control-file {
             margin-top: 10px;
+            font-size: 14px;
         }
 
         button {
@@ -62,10 +67,46 @@
             cursor: pointer;
             margin: 20px auto;
             display: block;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
         }
 
-        .result {
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result, .percentage {
             margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #e9ecef;
+        }
+
+        .sources {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #ffcccc;
+        }
+
+        .source-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .snippet-content {
+            display: none;
+            background-color: #f2f2f2;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .toggle-btn {
+            cursor: pointer;
+            color: #0056b3;
+            font-weight: bold;
+            text-decoration: underline;
         }
 
         table {
@@ -82,31 +123,6 @@
 
         th {
             background-color: #f2f2f2;
-        }
-
-        .percentage {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-
-        .snippet-content {
-            display: none;
-            text-align: left;
-        }
-
-        .toggle-btn {
-            background-color: #f2f2f2;
-            color: black;
-            border: none;
-            padding: 5px;
-            cursor: pointer;
-            text-align: left;
-            width: 100%;
-        }
-
-        .source-item {
-            margin: 20px 0;
         }
 
         img {
@@ -139,7 +155,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Research Output Similarity Checker</h1>
+        <h1>CCSICT Research Output Similarity Checker</h1>
         <form action="/detect" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
             <textarea name="text" placeholder="Enter text here..."></textarea>
 
@@ -171,7 +187,7 @@
                     <h3>Unique: {{ unique_percentage }}%</h3>
                 </div>
 
-                <img src="{{ pie_chart_path }}" alt="Plagiarism Pie Chart">
+                <img src="{{ url_for('static', filename='uploads/pie_chart.png') }}" alt="Plagiarism Pie Chart">
 
                 {% if plagiarism_sources %}
                     <div class="sources">
