@@ -87,8 +87,33 @@
             padding: 5px;
             border-bottom: 1px solid #ccc;
         }
+
+        .snippet-content {
+            display: none;
+            background-color: #f2f2f2;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .toggle-btn {
+            cursor: pointer;
+            color: blue;
+            font-weight: bold;
+            text-decoration: underline;
+        }
     </style>
     <script>
+        function toggleSnippetContent(button) {
+            const content = button.nextElementSibling;
+            if (content.style.display === "none" || content.style.display === "") {
+                content.style.display = "block";
+                button.textContent = "Hide Matching Snippets";
+            } else {
+                content.style.display = "none";
+                button.textContent = "Show Matching Snippets";
+            }
+        }
+
         function validateForm() {
             const textarea = document.querySelector('textarea');
             const fileInput = document.querySelector('#file');
@@ -107,32 +132,30 @@
         <form action="/detect" method="post" enctype="multipart/form-data" onsubmit="return validateForm();">
             <textarea name="text" placeholder="Enter text here..."></textarea>
             <div class="file-input-container">
-                <label for="file">Upload File(s) (PDF or TXT)</label>
-                <input type="file" class="form-control-file" id="file" name="files[]" multiple>
+                <label for="file">Upload PDF or TXT files:</label>
+                <input type="file" name="files[]" id="file" class="form-control-file" multiple>
             </div>
-            <button type="submit">Check Research Output</button>
+            <button type="submit">Check Similarity</button>
         </form>
         {% if result %}
-            <div class="result">{{ result }}</div>
-            
+        <div class="result">
+            <h2>{{ result }}</h2>
             {% if plagiarism_sources %}
-                <div class="sources">
-                    <h3>Plagiarized Sources</h3>
-                    {% for source_title, percentage, snippets in plagiarism_sources %}
-                        <div class="source-item">
-                            <strong>{{ source_title }}</strong>: {{ percentage }}%
-                            <div>
-                                <strong>Matching Snippets:</strong>
-                                <ul>
-                                    {% for snippet in snippets %}
-                                        <li>"{{ snippet }}"</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                    {% endfor %}
+            <div class="sources">
+                {% for source in plagiarism_sources %}
+                <div class="source-item">
+                    <p><strong>{{ source[0] }}</strong> - {{ source[1] }}%</p>
+                    <span class="toggle-btn" onclick="toggleSnippetContent(this);">Show Matching Snippets</span>
+                    <div class="snippet-content">
+                        {% for snippet in source[2] %}
+                        <p>{{ snippet }}</p>
+                        {% endfor %}
+                    </div>
                 </div>
+                {% endfor %}
+            </div>
             {% endif %}
+        </div>
         {% endif %}
     </div>
 </body>
