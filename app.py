@@ -46,8 +46,22 @@ data = get_database_data()
 # Preprocess the texts in the dataset for similarity calculations
 preprocessed_texts = tfidf_vectorizer.transform(data['plagiarized_text'].fillna(""))
 
+def get_snippets(source_text, input_text):
+    """Get snippets from source text that match the input text."""
+    source_words = source_text.split()
+    input_words = input_text.split()
+    snippet_length = 10
+    snippets = []
+
+    for i in range(len(source_words) - snippet_length + 1):
+        source_snippet = ' '.join(source_words[i:i + snippet_length])
+        if source_snippet in input_text:
+            snippets.append(source_snippet)
+
+    return list(set(snippets))  # Remove duplicates
+
 def detect(input_text):
-    """Detect plagiarism in the input text."""
+    """Detect plagiarism in the input text and extract matching parts."""
     if not input_text.strip():
         return "No text provided", []
 
@@ -64,12 +78,17 @@ def detect(input_text):
     plagiarism_sources = []
 
     # Adjusted threshold for more accurate results
-    threshold = 0.35  
+    threshold = 0.35
     for i, similarity in enumerate(cosine_similarities):
         if similarity > threshold:
             plagiarism_percentage = round(similarity * 100, 2)
             source_title = data['source_text'].iloc[i]
-            plagiarism_sources.append((source_title, plagiarism_percentage))
+            source_text = data['plagiarized_text'].iloc[i]
+
+            # Extract snippets from the source text
+            matching_snippets = get_snippets(source_text, input_text)
+
+            plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
 
     # Sort by similarity percentage in descending order
     plagiarism_sources.sort(key=lambda x: x[1], reverse=True)

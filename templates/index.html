@@ -51,7 +51,7 @@
 
         .form-control-file {
             margin-top: 10px;
-            padding-left: 70px; /* Adjust this value to move the input to the right */
+            padding-left: 70px;
         }
 
         button {
@@ -119,9 +119,17 @@
             {% if plagiarism_sources %}
                 <div class="sources">
                     <h3>Plagiarized Sources</h3>
-                    {% for source_title, percentage in plagiarism_sources %}
+                    {% for source_title, percentage, snippets in plagiarism_sources %}
                         <div class="source-item">
                             <strong>{{ source_title }}</strong>: {{ percentage }}%
+                            <div>
+                                <strong>Matching Snippets:</strong>
+                                <ul>
+                                    {% for snippet in snippets %}
+                                        <li>"{{ snippet }}"</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
