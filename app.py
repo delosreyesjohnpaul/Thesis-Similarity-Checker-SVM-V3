@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_from_directory
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -11,7 +11,7 @@ import re
 import matplotlib.pyplot as plt
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Store images in the static folder
 
 # Load the model and vectorizer
 model = pickle.load(open('model.pkl', 'rb'))
@@ -127,8 +127,15 @@ def plot_pie_chart(plagiarism_percentage, unique_percentage):
     plt.figure(figsize=(5, 5))
     plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     plt.axis('equal')
+    
     pie_chart_path = os.path.join(app.config['UPLOAD_FOLDER'], 'pie_chart.png')
+    
+    # Ensure the folder exists
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+
     plt.savefig(pie_chart_path)
+    plt.close()  # Close the plot to avoid display overhead in server logs
     return pie_chart_path
 
 @app.route('/')
@@ -156,6 +163,10 @@ def detect_plagiarism():
                            plagiarism_percentage=plagiarism_percentage, 
                            unique_percentage=unique_percentage,
                            pie_chart_path=pie_chart_path)
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == "__main__":
     app.run(debug=True)
