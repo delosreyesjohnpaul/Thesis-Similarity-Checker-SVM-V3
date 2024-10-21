@@ -55,18 +55,23 @@ def preprocess_text(text):
 
 def get_snippets(source_text, input_text):
     """Get matching snippets from source text that are present in the input text."""
-    source_lines = source_text.split('. ')
-    input_words = set(input_text.split())
-    snippets = []
+    # Tokenize the input text into words
+    input_words = input_text.split()
 
-    for line in source_lines:
-        source_words = set(line.split())
-        # Check if there's a significant overlap
-        common_words = source_words.intersection(input_words)
-        if len(common_words) / len(source_words) > 0.3:  # 30% of the words are matching
-            snippets.append(line)
+    # Find matching parts in the source text
+    matching_snippets = []
+    for word in input_words:
+        # Find exact matches or partial matches in the source text
+        pattern = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
+        matches = pattern.findall(source_text)
 
-    return snippets
+        if matches:
+            start = source_text.lower().find(word.lower())
+            end = start + len(word)
+            matching_snippets.append(source_text[start:end])
+
+    # Return a list of unique matching snippets
+    return list(set(matching_snippets))
 
 def detect(input_text):
     """Detect plagiarism in the input text and extract matching parts."""
