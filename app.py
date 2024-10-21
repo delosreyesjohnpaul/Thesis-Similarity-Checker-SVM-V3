@@ -8,6 +8,7 @@ import os
 from werkzeug.utils import secure_filename
 import pymysql
 import re
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -77,21 +78,23 @@ def get_snippets(source_text, input_text, ngram_size=5):
 
 def detect(input_text):
     if not input_text.strip():
-        return "No text provided", []
+        return "No text provided", [], 0, 100
 
     input_text = preprocess_text(input_text)
     vectorized_text = tfidf_vectorizer.transform([input_text])
     prediction = model.predict(vectorized_text)
 
     if prediction[0] == 0:
-        return "No Plagiarism Detected", []
+        return "No Plagiarism Detected", [], 0, 100
 
     cosine_similarities = cosine_similarity(vectorized_text, preprocessed_texts)[0]
     plagiarism_sources = []
 
     threshold = 0.35
+    total_similarity = 0
     for i, similarity in enumerate(cosine_similarities):
         if similarity > threshold:
+            total_similarity += similarity
             plagiarism_percentage = round(similarity * 100, 2)
             source_title = data['source_text'].iloc[i]
             source_text = data['plagiarized_text'].iloc[i]
@@ -99,8 +102,10 @@ def detect(input_text):
             plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
 
     plagiarism_sources.sort(key=lambda x: x[1], reverse=True)
+    total_plagiarism_percentage = min(round(total_similarity * 100, 2), 100)
+    unique_percentage = 100 - total_plagiarism_percentage
     detection_result = "Plagiarism Detected" if plagiarism_sources else "No Plagiarism Detected"
-    return detection_result, plagiarism_sources
+    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage
 
 def extract_text_from_file(file):
     text = ""
@@ -113,6 +118,18 @@ def extract_text_from_file(file):
     elif file.filename.endswith('.txt'):
         text = file.read().decode('utf-8')
     return text.strip()
+
+def plot_pie_chart(plagiarism_percentage, unique_percentage):
+    labels = ['Plagiarized', 'Unique']
+    sizes = [plagiarism_percentage, unique_percentage]
+    colors = ['#ff9999', '#66b3ff']
+
+    plt.figure(figsize=(5, 5))
+    plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
+    plt.axis('equal')
+    pie_chart_path = os.path.join(app.config['UPLOAD_FOLDER'], 'pie_chart.png')
+    plt.savefig(pie_chart_path)
+    return pie_chart_path
 
 @app.route('/')
 def home():
@@ -127,23 +144,18 @@ def detect_plagiarism():
         if file and (file.filename.endswith('.pdf') or file.filename.endswith('.txt')):
             input_text += "\n" + extract_text_from_file(file)
 
-    detection_result, plagiarism_sources = detect(input_text)
     word_count = len(input_text.split())
+    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage = detect(input_text)
+    pie_chart_path = plot_pie_chart(plagiarism_percentage, unique_percentage)
 
-    # Calculate plagiarism and unique percentages
-    total_percentage = sum(source[1] for source in plagiarism_sources)
-    plagiarized_percentage = min(total_percentage, 100)  # Capping at 100%
-    unique_percentage = 100 - plagiarized_percentage
-
-    return render_template(
-        'index.html',
-        result=detection_result,
-        plagiarism_sources=plagiarism_sources,
-        word_count=word_count,
-        results_found=len(plagiarism_sources),
-        plagiarized_percentage=plagiarized_percentage,
-        unique_percentage=unique_percentage
-    )
+    return render_template('index.html', 
+                           result=detection_result, 
+                           plagiarism_sources=plagiarism_sources, 
+                           word_count=word_count,
+                           total_results=len(plagiarism_sources), 
+                           plagiarism_percentage=plagiarism_percentage, 
+                           unique_percentage=unique_percentage,
+                           pie_chart_path=pie_chart_path)
 
 if __name__ == "__main__":
     app.run(debug=True)

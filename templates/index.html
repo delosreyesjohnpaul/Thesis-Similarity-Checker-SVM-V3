@@ -101,6 +101,26 @@
             font-weight: bold;
             text-decoration: underline;
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: center;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        img {
+            margin-top: 20px;
+        }
     </style>
     <script>
         function toggleSnippetContent(button) {
@@ -143,6 +163,25 @@
         {% if result %}
             <div class="result">
                 <h2>{{ result }}</h2>
+
+                <table>
+                    <tr>
+                        <th>Number of Words</th>
+                        <th>Results Found</th>
+                    </tr>
+                    <tr>
+                        <td>{{ word_count }}</td>
+                        <td>{{ total_results }}</td>
+                    </tr>
+                </table>
+
+                <div class="percentage">
+                    <h3>Plagiarized: {{ plagiarism_percentage }}%</h3>
+                    <h3>Unique: {{ unique_percentage }}%</h3>
+                </div>
+
+                <img src="{{ url_for('static', filename='uploads/pie_chart.png') }}" alt="Plagiarism Pie Chart">
+
                 {% if plagiarism_sources %}
                     <div class="sources">
                         {% for source in plagiarism_sources %}
