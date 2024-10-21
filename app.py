@@ -7,6 +7,7 @@ from PyPDF2 import PdfReader
 import os
 from werkzeug.utils import secure_filename
 import pymysql
+import re
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -46,24 +47,34 @@ data = get_database_data()
 # Preprocess the texts in the dataset for similarity calculations
 preprocessed_texts = tfidf_vectorizer.transform(data['plagiarized_text'].fillna(""))
 
+def preprocess_text(text):
+    """Clean and preprocess the text for better matching."""
+    text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces with a single space
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    return text.lower().strip()
+
 def get_snippets(source_text, input_text):
-    """Get snippets from source text that match the input text."""
-    source_words = source_text.split()
-    input_words = input_text.split()
-    snippet_length = 10
+    """Get matching snippets from source text that are present in the input text."""
+    source_lines = source_text.split('. ')
+    input_words = set(input_text.split())
     snippets = []
 
-    for i in range(len(source_words) - snippet_length + 1):
-        source_snippet = ' '.join(source_words[i:i + snippet_length])
-        if source_snippet in input_text:
-            snippets.append(source_snippet)
+    for line in source_lines:
+        source_words = set(line.split())
+        # Check if there's a significant overlap
+        common_words = source_words.intersection(input_words)
+        if len(common_words) / len(source_words) > 0.3:  # 30% of the words are matching
+            snippets.append(line)
 
-    return list(set(snippets))  # Remove duplicates
+    return snippets
 
 def detect(input_text):
     """Detect plagiarism in the input text and extract matching parts."""
     if not input_text.strip():
         return "No text provided", []
+
+    # Preprocess the input text
+    input_text = preprocess_text(input_text)
 
     # Vectorize the input text
     vectorized_text = tfidf_vectorizer.transform([input_text])
