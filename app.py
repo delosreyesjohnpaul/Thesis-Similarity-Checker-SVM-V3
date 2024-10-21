@@ -53,25 +53,29 @@ def preprocess_text(text):
     text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
     return text.lower().strip()
 
-def get_snippets(source_text, input_text):
-    """Get matching snippets from source text that are present in the input text."""
-    # Tokenize the input text into words
-    input_words = input_text.split()
+def get_snippets(source_text, input_text, ngram_size=5):
+    """Get matching phrases from source text that are present in the input text."""
+    # Preprocess both source and input text
+    source_text_clean = preprocess_text(source_text)
+    input_text_clean = preprocess_text(input_text)
 
-    # Find matching parts in the source text
-    matching_snippets = []
-    for word in input_words:
-        # Find exact matches or partial matches in the source text
-        pattern = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
-        matches = pattern.findall(source_text)
+    # Tokenize source and input text into words
+    source_words = source_text_clean.split()
+    input_words = input_text_clean.split()
 
-        if matches:
-            start = source_text.lower().find(word.lower())
-            end = start + len(word)
-            matching_snippets.append(source_text[start:end])
+    # Function to generate n-grams from words list
+    def generate_ngrams(words, n):
+        return [' '.join(words[i:i+n]) for i in range(len(words)-n+1)]
 
-    # Return a list of unique matching snippets
-    return list(set(matching_snippets))
+    # Generate n-grams for both source and input text
+    input_ngrams = set(generate_ngrams(input_words, ngram_size))
+    source_ngrams = generate_ngrams(source_words, ngram_size)
+
+    # Find matching n-grams between source and input
+    matching_snippets = [ngram for ngram in source_ngrams if ngram in input_ngrams]
+
+    # Return unique matching snippets, sorted by their order in the source text
+    return sorted(set(matching_snippets), key=lambda snippet: source_text_clean.find(snippet))
 
 def detect(input_text):
     """Detect plagiarism in the input text and extract matching parts."""
@@ -100,7 +104,7 @@ def detect(input_text):
             source_title = data['source_text'].iloc[i]
             source_text = data['plagiarized_text'].iloc[i]
 
-            # Extract snippets of plagiarized text from the source
+            # Extract continuous plagiarized snippets from the source
             matching_snippets = get_snippets(source_text, input_text)
 
             plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
