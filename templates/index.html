@@ -12,14 +12,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
             background: url('{{ url_for("static", filename="blue-mountains-background-scaled.jpeg") }}') no-repeat center center fixed;
             background-size: cover;
         }
-
         .container {
             width: 50%;
-            background: linear-gradient(to bottom, #76B8E0, #8FC8F0, #A8D8FF, #C1E3FF);
+            background: linear-gradient(to bottom, #76B8E0, #A8D8FF);
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -27,116 +25,24 @@
             max-height: 80vh;
             overflow-y: auto;
         }
-
-        h1 {
-            margin-bottom: 20px;
-        }
-
-        textarea {
-            width: 90%;
-            height: 100px;
-            margin: 20px auto;
-            padding: 10px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            display: block;
-        }
-
-        .file-input-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 20px 0;
-        }
-
-        .form-control-file {
-            margin-top: 10px;
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 20px auto;
-            display: block;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .result, .percentage {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #e9ecef;
-        }
-
-        .sources {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #ffcccc;
-        }
-
-        .source-item {
-            margin: 5px 0;
-            padding: 5px;
-            border-bottom: 1px solid #ccc;
-        }
-
-        .snippet-content {
-            display: none;
-            background-color: #f2f2f2;
-            padding: 10px;
-            border-radius: 5px;
-        }
-
-        .toggle-btn {
-            cursor: pointer;
-            color: blue;
-            font-weight: bold;
-            text-decoration: underline;
-        }
+        .result, .sources { margin-top: 20px; padding: 10px; background-color: #e9ecef; }
+        .snippet-content { display: none; background-color: #f2f2f2; padding: 10px; }
+        .toggle-btn { cursor: pointer; color: blue; text-decoration: underline; }
     </style>
     <script>
         function toggleSnippetContent(button) {
             const content = button.nextElementSibling;
-            if (content.style.display === "none" || content.style.display === "") {
-                content.style.display = "block";
-                button.textContent = "Hide Matching Snippets";
-            } else {
-                content.style.display = "none";
-                button.textContent = "Show Matching Snippets";
-            }
-        }
-
-        function validateForm() {
-            const textarea = document.querySelector('textarea');
-            const fileInput = document.querySelector('#file');
-            
-            if (textarea.value.trim() === "" && fileInput.files.length === 0) {
-                alert("Please enter text or upload at least one file.");
-                return false;
-            }
-            return true;
+            content.style.display = content.style.display === "none" ? "block" : "none";
+            button.textContent = button.textContent.includes("Show") ? "Hide Snippets" : "Show Snippets";
         }
     </script>
 </head>
 <body>
     <div class="container">
         <h1>CCSICT Research Output Similarity Checker</h1>
-        <form action="/detect" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+        <form action="/detect" method="POST" enctype="multipart/form-data">
             <textarea name="text" placeholder="Enter text here..."></textarea>
-
-            <div class="file-input-container">
-                <label for="file">Upload PDF or TXT file(s):</label>
-                <input type="file" name="files[]" id="file" class="form-control-file" multiple>
-            </div>
-
+            <input type="file" name="files[]" multiple>
             <button type="submit">Check for Plagiarism</button>
         </form>
 
@@ -146,14 +52,12 @@
                 {% if plagiarism_sources %}
                     <div class="sources">
                         {% for source in plagiarism_sources %}
-                            <div class="source-item">
-                                <p>{{ source[0] }} - {{ source[1] }}% Plagiarized</p>
-                                <button class="toggle-btn" onclick="toggleSnippetContent(this)">Show Matching Snippets</button>
-                                <div class="snippet-content">
-                                    {% for snippet in source[2] %}
-                                        <p>{{ snippet }}</p>
-                                    {% endfor %}
-                                </div>
+                            <p>{{ source[0] }} - {{ source[1] }}% Plagiarized</p>
+                            <button class="toggle-btn" onclick="toggleSnippetContent(this)">Show Snippets</button>
+                            <div class="snippet-content">
+                                {% for snippet in source[2] %}
+                                    <p>{{ snippet }}</p>
+                                {% endfor %}
                             </div>
                         {% endfor %}
                     </div>
