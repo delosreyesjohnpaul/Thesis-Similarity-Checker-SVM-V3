@@ -138,24 +138,24 @@
             <button type="submit">Check Similarity</button>
         </form>
         {% if result %}
-        <div class="result">
-            <h2>{{ result }}</h2>
-            {% if plagiarism_sources %}
-            <div class="sources">
-                {% for source in plagiarism_sources %}
-                <div class="source-item">
-                    <p><strong>{{ source[0] }}</strong> - {{ source[1] }}%</p>
-                    <span class="toggle-btn" onclick="toggleSnippetContent(this);">Show Matching Snippets</span>
-                    <div class="snippet-content">
-                        {% for snippet in source[2] %}
-                        <p>{{ snippet }}</p>
+            <div class="result">
+                <h2>{{ result }}</h2>
+                {% if plagiarism_sources %}
+                    <div class="sources">
+                        {% for source in plagiarism_sources %}
+                            <div class="source-item">
+                                <p><strong>{{ source[0] }}</strong> - {{ source[1] }}% Plagiarized</p>
+                                <span class="toggle-btn" onclick="toggleSnippetContent(this);">Show Matching Snippets</span>
+                                <div class="snippet-content">
+                                    {% for snippet in source[2] %}
+                                        <p>{{ snippet }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         {% endfor %}
                     </div>
-                </div>
-                {% endfor %}
+                {% endif %}
             </div>
-            {% endif %}
-        </div>
         {% endif %}
     </div>
 </body>
