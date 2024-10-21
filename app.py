@@ -1,49 +1,58 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, render_template, request
+import pickle
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import pandas as pd
+from PyPDF2 import PdfReader
 import os
 from werkzeug.utils import secure_filename
-import mysql.connector
-import difflib
+import pymysql
+import re
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Set file upload folder and allowed extensions
-UPLOAD_FOLDER = 'uploads/'
-ALLOWED_EXTENSIONS = {'pdf', 'txt'}
+# Load the model and vectorizer
+model = pickle.load(open('model.pkl', 'rb'))
+tfidf_vectorizer = pickle.load(open('tfidf_vectorizer.pkl', 'rb'))
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Connect to MySQL database
-def connect_to_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="password",
-        database="plagiarism_db"
+# MySQL database connection
+def get_database_data():
+    """Fetch data from MySQL database."""
+    connection = pymysql.connect(
+        host='localhost',
+        user='root',
+        password='',
+        database='similaritydb'
     )
+    cursor = connection.cursor()
 
-# Function to preprocess text (remove punctuation, lowercase, etc.)
+    # Execute the query to get data
+    query = "SELECT * FROM similaritydataset"
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    # Fetch column names and create a DataFrame
+    columns = [col[0] for col in cursor.description]
+    data = pd.DataFrame(rows, columns=columns)
+
+    # Close the connection
+    connection.close()
+
+    return data
+
+# Fetch the dataset from MySQL
+data = get_database_data()
+
+# Preprocess the texts in the dataset for similarity calculations
+preprocessed_texts = tfidf_vectorizer.transform(data['plagiarized_text'].fillna(""))
+
 def preprocess_text(text):
-    return ''.join(c.lower() if c.isalnum() or c.isspace() else ' ' for c in text).strip()
+    """Clean and preprocess the text for better matching."""
+    text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces with a single space
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    return text.lower().strip()
 
-# Function to check if the file extension is allowed
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# Function to read the file content
-def read_file(file_path):
-    _, file_extension = os.path.splitext(file_path)
-    
-    if file_extension.lower() == '.txt':
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return file.read()
-    elif file_extension.lower() == '.pdf':
-        import PyPDF2
-        with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            text = ''.join(page.extract_text() for page in pdf_reader.pages)
-            return text
-
-# Function to detect plagiarized snippets
 def get_snippets(source_text, input_text, ngram_size=5):
     """Get matching phrases from source text that are present in the input text."""
     # Preprocess both source and input text
@@ -93,65 +102,82 @@ def get_snippets(source_text, input_text, ngram_size=5):
     # Return unique matching snippets, sorted by their order in the source text
     return sorted(set(combined_snippets), key=lambda snippet: source_text_clean.find(snippet))
 
-# Function to compare input file with the database records
-def check_plagiarism(input_text):
-    conn = connect_to_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, title, content FROM documents")
-    documents = cursor.fetchall()
-    conn.close()
 
-    plagiarized_results = []
-    
-    for doc_id, title, content in documents:
-        match_ratio = difflib.SequenceMatcher(None, input_text, content).ratio()
-        if match_ratio > 0.3:  # Set a threshold for plagiarism detection (e.g., 30%)
-            matching_snippets = get_snippets(content, input_text)
-            if matching_snippets:
-                plagiarized_results.append({
-                    'document_id': doc_id,
-                    'title': title,
-                    'match_percentage': round(match_ratio * 100, 2),
-                    'matching_snippets': matching_snippets
-                })
-    
-    return plagiarized_results
+def detect(input_text):
+    """Detect plagiarism in the input text and extract matching parts."""
+    if not input_text.strip():
+        return "No text provided", []
 
-# Home page route
+    # Preprocess the input text
+    input_text = preprocess_text(input_text)
+
+    # Vectorize the input text
+    vectorized_text = tfidf_vectorizer.transform([input_text])
+    prediction = model.predict(vectorized_text)
+
+    # Handle cases where the model predicts 'No Plagiarism'
+    if prediction[0] == 0:
+        return "No Plagiarism Detected", []
+
+    # Calculate similarity scores for plagiarism
+    cosine_similarities = cosine_similarity(vectorized_text, preprocessed_texts)[0]
+    plagiarism_sources = []
+
+    threshold = 0.35
+    for i, similarity in enumerate(cosine_similarities):
+        if similarity > threshold:
+            plagiarism_percentage = round(similarity * 100, 2)
+            source_title = data['source_text'].iloc[i]
+            source_text = data['plagiarized_text'].iloc[i]
+
+            # Extract continuous plagiarized snippets from the source
+            matching_snippets = get_snippets(source_text, input_text)
+
+            plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
+
+    plagiarism_sources.sort(key=lambda x: x[1], reverse=True)
+
+    detection_result = "Plagiarism Detected" if plagiarism_sources else "No Plagiarism Detected"
+    return detection_result, plagiarism_sources
+
+def extract_text_from_file(file):
+    """Extract text from uploaded PDF or TXT file."""
+    text = ""
+    if file.filename.endswith('.pdf'):
+        reader = PdfReader(file)
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    elif file.filename.endswith('.txt'):
+        text = file.read().decode('utf-8')
+    return text.strip()
+
 @app.route('/')
-def index():
+def home():
+    """Render the home page."""
     return render_template('index.html')
 
-# Upload file route
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"})
+@app.route('/detect', methods=['POST'])
+def detect_plagiarism():
+    """Handle plagiarism detection requests."""
+    input_text = request.form.get('text', "").strip()
 
-    file = request.files['file']
+    # Process uploaded files, if any
+    files = request.files.getlist("files[]")
+    for file in files:
+        if file and (file.filename.endswith('.pdf') or file.filename.endswith('.txt')):
+            file_text = extract_text_from_file(file)
+            input_text += "\n" + file_text
 
-    if file.filename == '':
-        return jsonify({"error": "No selected file"})
+    # Run the detection logic
+    detection_result, plagiarism_sources = detect(input_text)
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+    return render_template(
+        'index.html', 
+        result=detection_result, 
+        plagiarism_sources=plagiarism_sources
+    )
 
-        # Read and process file content
-        input_text = read_file(file_path)
-
-        # Check for plagiarism
-        plagiarism_results = check_plagiarism(input_text)
-
-        return jsonify(plagiarism_results)
-
-    return jsonify({"error": "Invalid file type"})
-
-# Main entry point
 if __name__ == "__main__":
-    # Ensure upload folder exists
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    
-    # Run the app
     app.run(debug=True)
