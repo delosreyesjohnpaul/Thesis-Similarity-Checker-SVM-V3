@@ -129,14 +129,17 @@
 <body>
     <div class="container">
         <h1>CCSICT Research Output Similarity Checker</h1>
-        <form action="/detect" method="post" enctype="multipart/form-data" onsubmit="return validateForm();">
+        <form action="/detect" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
             <textarea name="text" placeholder="Enter text here..."></textarea>
+
             <div class="file-input-container">
-                <label for="file">Upload PDF or TXT files:</label>
+                <label for="file">Upload PDF or TXT file(s):</label>
                 <input type="file" name="files[]" id="file" class="form-control-file" multiple>
             </div>
-            <button type="submit">Check Similarity</button>
+
+            <button type="submit">Check for Plagiarism</button>
         </form>
+
         {% if result %}
             <div class="result">
                 <h2>{{ result }}</h2>
@@ -144,8 +147,8 @@
                     <div class="sources">
                         {% for source in plagiarism_sources %}
                             <div class="source-item">
-                                <p><strong>{{ source[0] }}</strong> - {{ source[1] }}% Plagiarized</p>
-                                <span class="toggle-btn" onclick="toggleSnippetContent(this);">Show Matching Snippets</span>
+                                <p>{{ source[0] }} - {{ source[1] }}% Plagiarized</p>
+                                <button class="toggle-btn" onclick="toggleSnippetContent(this)">Show Matching Snippets</button>
                                 <div class="snippet-content">
                                     {% for snippet in source[2] %}
                                         <p>{{ snippet }}</p>
@@ -159,4 +162,4 @@
         {% endif %}
     </div>
 </body>
-</html> 
+</html>
