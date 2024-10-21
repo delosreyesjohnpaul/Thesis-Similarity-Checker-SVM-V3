@@ -128,7 +128,22 @@ def detect_plagiarism():
             input_text += "\n" + extract_text_from_file(file)
 
     detection_result, plagiarism_sources = detect(input_text)
-    return render_template('index.html', result=detection_result, plagiarism_sources=plagiarism_sources)
+    word_count = len(input_text.split())
+
+    # Calculate plagiarism and unique percentages
+    total_percentage = sum(source[1] for source in plagiarism_sources)
+    plagiarized_percentage = min(total_percentage, 100)  # Capping at 100%
+    unique_percentage = 100 - plagiarized_percentage
+
+    return render_template(
+        'index.html',
+        result=detection_result,
+        plagiarism_sources=plagiarism_sources,
+        word_count=word_count,
+        results_found=len(plagiarism_sources),
+        plagiarized_percentage=plagiarized_percentage,
+        unique_percentage=unique_percentage
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
