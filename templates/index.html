@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCSICT Research Output Similarity Checker</title>
     <style>
-        body {
+       body {
             font-family: Arial, sans-serif;
             margin: 0;
             height: 100vh;
@@ -180,11 +180,15 @@
 
                 <table>
                     <tr>
-                        <th>Number of Words</th>
+                        <th>Total Word Count</th>
+                        <th>Plagiarized Word Count</th>
+                        <th>Unique Word Count</th>
                         <th>Results Found</th>
                     </tr>
                     <tr>
                         <td>{{ word_count }}</td>
+                        <td>{{ plagiarized_word_count }}</td>
+                        <td>{{ unique_word_count }}</td>
                         <td>{{ total_results }}</td>
                     </tr>
                 </table>
