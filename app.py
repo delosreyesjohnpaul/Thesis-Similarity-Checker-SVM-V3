@@ -42,7 +42,6 @@ def preprocess_text(text):
     text = re.sub(r'[^\w\s]', '', text)
     return text.lower().strip()
 
-# Function to get matched and non-matched snippets
 def get_snippets(source_text, input_text, ngram_size=5):
     source_text_clean = preprocess_text(source_text)
     input_text_clean = preprocess_text(input_text)
@@ -57,8 +56,6 @@ def get_snippets(source_text, input_text, ngram_size=5):
     source_ngrams = generate_ngrams(source_words, ngram_size)
 
     matching_snippets = [ngram for ngram in source_ngrams if ngram in input_ngrams]
-    non_matching_snippets = len(input_ngrams) - len(matching_snippets)
-
     combined_snippets = []
     current_snippet = []
 
@@ -77,23 +74,21 @@ def get_snippets(source_text, input_text, ngram_size=5):
     if current_snippet:
         combined_snippets.append(' '.join(current_snippet))
 
-    return sorted(set(combined_snippets), key=lambda snippet: source_text_clean.find(snippet)), non_matching_snippets
+    return sorted(set(combined_snippets), key=lambda snippet: source_text_clean.find(snippet))
 
-# Function to detect plagiarism and calculate snippet matching
 def detect(input_text):
     if not input_text.strip():
-        return "No text provided", [], 0, 100, 0
+        return "No text provided", [], 0, 100
 
     input_text = preprocess_text(input_text)
     vectorized_text = tfidf_vectorizer.transform([input_text])
     prediction = model.predict(vectorized_text)
 
     if prediction[0] == 0:
-        return "No Plagiarism Detected", [], 0, 100, 0
+        return "No Plagiarism Detected", [], 0, 100
 
     cosine_similarities = cosine_similarity(vectorized_text, preprocessed_texts)[0]
     plagiarism_sources = []
-    total_non_matching_snippets = 0
 
     threshold = 0.35
     total_similarity = 0
@@ -103,17 +98,15 @@ def detect(input_text):
             plagiarism_percentage = round(similarity * 100, 2)
             source_title = data['source_text'].iloc[i]
             source_text = data['plagiarized_text'].iloc[i]
-            matching_snippets, non_matching_snippets = get_snippets(source_text, input_text)
+            matching_snippets = get_snippets(source_text, input_text)
             plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
-            total_non_matching_snippets += non_matching_snippets
 
     plagiarism_sources.sort(key=lambda x: x[1], reverse=True)
     total_plagiarism_percentage = min(round(total_similarity * 100, 2), 100)
     unique_percentage = 100 - total_plagiarism_percentage
     detection_result = "Plagiarism Detected" if plagiarism_sources else "No Plagiarism Detected"
-    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage, total_non_matching_snippets
+    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage
 
-# Extract text from file (PDF or TXT)
 def extract_text_from_file(file):
     text = ""
     if file.filename.endswith('.pdf'):
@@ -126,7 +119,6 @@ def extract_text_from_file(file):
         text = file.read().decode('utf-8')
     return text.strip()
 
-# Plot pie chart
 def plot_pie_chart(plagiarism_percentage, unique_percentage):
     labels = ['Plagiarized', 'Unique']
     sizes = [plagiarism_percentage, unique_percentage]
@@ -135,14 +127,15 @@ def plot_pie_chart(plagiarism_percentage, unique_percentage):
     plt.figure(figsize=(5, 5))
     plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
     plt.axis('equal')
-
+    
     pie_chart_path = os.path.join(app.config['UPLOAD_FOLDER'], 'pie_chart.png')
     
+    # Ensure the folder exists
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
 
     plt.savefig(pie_chart_path)
-    plt.close()
+    plt.close()  # Close the plot to avoid display overhead in server logs
     return pie_chart_path
 
 @app.route('/')
@@ -159,7 +152,7 @@ def detect_plagiarism():
             input_text += "\n" + extract_text_from_file(file)
 
     word_count = len(input_text.split())
-    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage, total_non_matching_snippets = detect(input_text)
+    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage = detect(input_text)
     pie_chart_path = plot_pie_chart(plagiarism_percentage, unique_percentage)
 
     return render_template('index.html', 
@@ -169,7 +162,6 @@ def detect_plagiarism():
                            total_results=len(plagiarism_sources), 
                            plagiarism_percentage=plagiarism_percentage, 
                            unique_percentage=unique_percentage,
-                           total_non_matching_snippets=total_non_matching_snippets,  # Send non-matching snippets
                            pie_chart_path=pie_chart_path)
 
 @app.route('/uploads/<filename>')
