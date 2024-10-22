@@ -21,192 +21,101 @@
             width: 50%;
             background: linear-gradient(to bottom, #76B8E0, #8FC8F0, #A8D8FF, #C1E3FF);
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
             text-align: center;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        h1 {
-            margin-bottom: 20px;
-            color: #0056b3;
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        textarea {
-            width: 90%;
-            height: 100px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            color: #333;
             margin: 20px auto;
-            padding: 10px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-            display: block;
-            resize: none;
         }
 
-        .file-input-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 20px 0;
-        }
-
-        .form-control-file {
-            margin-top: 10px;
-            font-size: 14px;
-            padding-left: 70px; /* Adjust this value to move the input to the right */
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 20px auto;
-            display: block;
-            font-size: 16px;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .result, .percentage {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #e9ecef;
-        }
-
-        .sources {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #ffcccc;
-        }
-
-        .source-item {
-            margin: 5px 0;
-            padding: 5px;
-            border-bottom: 1px solid #ccc;
-            font-weight: bold;
-        }
-
-        .snippet-content {
-            display: none;
-            background-color: #f2f2f2;
-            padding: 10px;
-            border-radius: 5px;
-        }
-
-        .toggle-btn {
-            cursor: pointer;
-            color: #e5e8eb;
-            font-weight: bold;
-            text-decoration: underline;
-        }
-
-        table {
+        .results-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
         }
 
-        th, td {
-            border: 1px solid #dddddd;
-            text-align: center;
+        .results-table th, .results-table td {
+            border: 1px solid #ddd;
             padding: 8px;
+            text-align: left;
         }
 
-        th {
+        .results-table th {
             background-color: #f2f2f2;
         }
 
-        img {
-            margin-top: 20px;
-        }
-    </style>
-    <script>
-        function toggleSnippetContent(button) {
-            const content = button.nextElementSibling;
-            if (content.style.display === "none" || content.style.display === "") {
-                content.style.display = "block";
-                button.textContent = "Hide Matching Snippets";
-            } else {
-                content.style.display = "none";
-                button.textContent = "Show Matching Snippets";
-            }
+        .result-card {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin: 15px 0;
         }
 
-        function validateForm() {
-            const textarea = document.querySelector('textarea');
-            const fileInput = document.querySelector('#file');
-            
-            if (textarea.value.trim() === "" && fileInput.files.length === 0) {
-                alert("Please enter text or upload at least one file.");
-                return false;
-            }
-            return true;
+        .file-input {
+            background-color: #ffffff;
+            padding: 10px;
+            width: 100%;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
         }
-    </script>
+
+        .chart-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .chart {
+            max-width: 300px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>CCSICT Research Output Similarity Checker</h1>
-        <form action="/detect" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
-            <textarea name="text" placeholder="Enter text here..."></textarea>
-
-            <div class="file-input-container">
-                <label for="file">Upload PDF or TXT file(s):</label>
-                <input type="file" name="files[]" id="file" class="form-control-file" multiple>
-            </div>
-
-            <button type="submit">Check for Plagiarism</button>
+        <form method="POST" action="/detect" enctype="multipart/form-data">
+            <textarea name="text" rows="10" placeholder="Paste your text here" style="width: 100%; padding: 10px;"></textarea>
+            <br><br>
+            <input type="file" name="files[]" multiple accept=".pdf,.txt" class="file-input">
+            <br><br>
+            <button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Check for Plagiarism</button>
         </form>
 
         {% if result %}
-            <div class="result">
-                <h2>{{ result }}</h2>
-
-                <table>
+        <div class="result-card">
+            <h2>{{ result }}</h2>
+            <p><strong>Total Word Count:</strong> {{ word_count }}</p>
+            <p><strong>Plagiarized Word Count:</strong> {{ plagiarized_word_count }}</p>
+            <p><strong>Unique Word Count:</strong> {{ unique_word_count }}</p>
+            <table class="results-table">
+                <thead>
                     <tr>
-                        <th>Number of Words</th>
-                        <th>Results Found</th>
+                        <th>Source Title</th>
+                        <th>Plagiarism Percentage</th>
+                        <th>Matching Snippets</th>
                     </tr>
+                </thead>
+                <tbody>
+                    {% for source_title, percentage, snippets in plagiarism_sources %}
                     <tr>
-                        <td>{{ word_count }}</td>
-                        <td>{{ total_results }}</td>
+                        <td>{{ source_title }}</td>
+                        <td>{{ percentage }}%</td>
+                        <td>{{ snippets | join(", ") }}</td>
                     </tr>
-                </table>
-
-                <div class="percentage">
-                    <h3>Plagiarized: {{ plagiarism_percentage }}%</h3>
-                    <h3>Unique: {{ unique_percentage }}%</h3>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="chart-container">
+                <div class="chart">
+                    <img src="{{ url_for('uploaded_file', filename=pie_chart_path.split('/')[-1]) }}" alt="Pie Chart">
                 </div>
-
-                <img src="{{ url_for('static', filename='uploads/pie_chart.png') }}" alt="Plagiarism Pie Chart">
-
-                {% if plagiarism_sources %}
-                    <div class="sources">
-                        {% for source in plagiarism_sources %}
-                            <div class="source-item">
-                                <p>{{ source[0] }} - {{ source[1] }}% Plagiarized</p>
-                                <button class="toggle-btn" onclick="toggleSnippetContent(this)">Show Matching Snippets</button>
-                                <div class="snippet-content">
-                                    {% for snippet in source[2] %}
-                                        <p>{{ snippet }}</p>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+                <div class="chart">
+                    <img src="{{ url_for('uploaded_file', filename=similarity_chart_path.split('/')[-1]) }}" alt="Similarity Chart">
+                </div>
             </div>
+        </div>
         {% endif %}
     </div>
 </body>

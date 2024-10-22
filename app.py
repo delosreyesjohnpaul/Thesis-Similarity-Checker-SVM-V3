@@ -78,20 +78,21 @@ def get_snippets(source_text, input_text, ngram_size=5):
 
 def detect(input_text):
     if not input_text.strip():
-        return "No text provided", [], 0, 100
+        return "No text provided", [], 0, 100, 0, 0
 
     input_text = preprocess_text(input_text)
     vectorized_text = tfidf_vectorizer.transform([input_text])
     prediction = model.predict(vectorized_text)
 
     if prediction[0] == 0:
-        return "No Plagiarism Detected", [], 0, 100
+        return "No Plagiarism Detected", [], 0, 100, 0, len(input_text.split())
 
     cosine_similarities = cosine_similarity(vectorized_text, preprocessed_texts)[0]
     plagiarism_sources = []
 
     threshold = 0.35
     total_similarity = 0
+    plagiarized_word_count = 0
     for i, similarity in enumerate(cosine_similarities):
         if similarity > threshold:
             total_similarity += similarity
@@ -99,13 +100,16 @@ def detect(input_text):
             source_title = data['source_text'].iloc[i]
             source_text = data['plagiarized_text'].iloc[i]
             matching_snippets = get_snippets(source_text, input_text)
+            plagiarized_word_count += sum(len(snippet.split()) for snippet in matching_snippets)
             plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
 
     plagiarism_sources.sort(key=lambda x: x[1], reverse=True)
     total_plagiarism_percentage = min(round(total_similarity * 100, 2), 100)
     unique_percentage = 100 - total_plagiarism_percentage
+    total_word_count = len(input_text.split())
+    unique_word_count = total_word_count - plagiarized_word_count
     detection_result = "Plagiarism Detected" if plagiarism_sources else "No Plagiarism Detected"
-    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage
+    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage, plagiarized_word_count, unique_word_count
 
 def extract_text_from_file(file):
     text = ""
@@ -138,6 +142,22 @@ def plot_pie_chart(plagiarism_percentage, unique_percentage):
     plt.close()  # Close the plot to avoid display overhead in server logs
     return pie_chart_path
 
+def plot_similarity_index(similarity_index):
+    plt.figure(figsize=(5, 5))
+    plt.bar(['Similarity Index'], [similarity_index], color='#76B8E0')
+    plt.ylim(0, 100)
+    plt.ylabel('Percentage')
+    plt.title('Similarity Index')
+
+    similarity_chart_path = os.path.join(app.config['UPLOAD_FOLDER'], 'similarity_chart.png')
+
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+
+    plt.savefig(similarity_chart_path)
+    plt.close()
+    return similarity_chart_path
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -152,8 +172,9 @@ def detect_plagiarism():
             input_text += "\n" + extract_text_from_file(file)
 
     word_count = len(input_text.split())
-    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage = detect(input_text)
+    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage, plagiarized_word_count, unique_word_count = detect(input_text)
     pie_chart_path = plot_pie_chart(plagiarism_percentage, unique_percentage)
+    similarity_chart_path = plot_similarity_index(plagiarism_percentage)
 
     return render_template('index.html', 
                            result=detection_result, 
@@ -162,7 +183,10 @@ def detect_plagiarism():
                            total_results=len(plagiarism_sources), 
                            plagiarism_percentage=plagiarism_percentage, 
                            unique_percentage=unique_percentage,
-                           pie_chart_path=pie_chart_path)
+                           plagiarized_word_count=plagiarized_word_count,
+                           unique_word_count=unique_word_count,
+                           pie_chart_path=pie_chart_path,
+                           similarity_chart_path=similarity_chart_path)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
