@@ -135,6 +135,8 @@
 
         img {
             margin-top: 20px;
+            max-width: 100%;
+            height: auto;
         }
     </style>
     <script>
@@ -196,6 +198,10 @@
                 </div>
 
                 <img src="{{ url_for('static', filename='uploads/pie_chart.png') }}" alt="Plagiarism Pie Chart">
+
+                {% if similarity_graph_path %}
+                    <img src="{{ url_for('static', filename='uploads/similarity_graph.png') }}" alt="Similarity Index Graph">
+                {% endif %}
 
                 {% if plagiarism_sources %}
                     <div class="sources">

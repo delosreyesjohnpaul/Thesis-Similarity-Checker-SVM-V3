@@ -13,6 +13,10 @@ import matplotlib.pyplot as plt
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Store images in the static folder
 
+# Ensure the upload folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
 # Load the model and vectorizer
 model = pickle.load(open('model.pkl', 'rb'))
 tfidf_vectorizer = pickle.load(open('tfidf_vectorizer.pkl', 'rb'))
@@ -59,7 +63,7 @@ def get_snippets(source_text, input_text, ngram_size=5):
     combined_snippets = []
     current_snippet = []
 
-    for i, ngram in enumerate(matching_snippets):
+    for ngram in matching_snippets:
         if not current_snippet:
             current_snippet.append(ngram)
         else:
@@ -130,13 +134,44 @@ def plot_pie_chart(plagiarism_percentage, unique_percentage):
     
     pie_chart_path = os.path.join(app.config['UPLOAD_FOLDER'], 'pie_chart.png')
     
-    # Ensure the folder exists
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-
     plt.savefig(pie_chart_path)
     plt.close()  # Close the plot to avoid display overhead in server logs
     return pie_chart_path
+
+def plot_similarity_graph(plagiarism_sources):
+    if not plagiarism_sources:
+        return None
+
+    # Extract source titles and their plagiarism percentages
+    sources = [source[0] for source in plagiarism_sources]
+    percentages = [source[1] for source in plagiarism_sources]
+
+    # Limit the number of sources to display for clarity
+    max_sources = 10
+    if len(sources) > max_sources:
+        sources = sources[:max_sources]
+        percentages = percentages[:max_sources]
+
+    # Create a bar chart
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(sources, percentages, color='skyblue')
+    plt.xlabel('Sources')
+    plt.ylabel('Plagiarism Percentage (%)')
+    plt.title('Similarity Index')
+    plt.xticks(rotation=45, ha='right')
+
+    # Add percentage labels on top of each bar
+    for bar, percentage in zip(bars, percentages):
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, f'{percentage}%', ha='center', va='bottom', fontsize=8)
+
+    plt.tight_layout()
+
+    similarity_graph_path = os.path.join(app.config['UPLOAD_FOLDER'], 'similarity_graph.png')
+
+    plt.savefig(similarity_graph_path)
+    plt.close()
+    return similarity_graph_path
 
 @app.route('/')
 def home():
@@ -155,6 +190,10 @@ def detect_plagiarism():
     detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage = detect(input_text)
     pie_chart_path = plot_pie_chart(plagiarism_percentage, unique_percentage)
 
+    similarity_graph_path = None
+    if plagiarism_sources:
+        similarity_graph_path = plot_similarity_graph(plagiarism_sources)
+
     return render_template('index.html', 
                            result=detection_result, 
                            plagiarism_sources=plagiarism_sources, 
@@ -162,7 +201,8 @@ def detect_plagiarism():
                            total_results=len(plagiarism_sources), 
                            plagiarism_percentage=plagiarism_percentage, 
                            unique_percentage=unique_percentage,
-                           pie_chart_path=pie_chart_path)
+                           pie_chart_path=pie_chart_path,
+                           similarity_graph_path=similarity_graph_path)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
