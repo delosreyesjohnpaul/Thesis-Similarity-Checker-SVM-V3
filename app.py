@@ -11,7 +11,7 @@ import re
 import matplotlib.pyplot as plt
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Store images in the static folder
 
 # Load the model and vectorizer
 model = pickle.load(open('model.pkl', 'rb'))
@@ -78,24 +78,20 @@ def get_snippets(source_text, input_text, ngram_size=5):
 
 def detect(input_text):
     if not input_text.strip():
-        return "No text provided", [], 0, 100, 0, 0
+        return "No text provided", [], 0, 100
 
     input_text = preprocess_text(input_text)
     vectorized_text = tfidf_vectorizer.transform([input_text])
     prediction = model.predict(vectorized_text)
 
     if prediction[0] == 0:
-        total_words = len(input_text.split())
-        return "No Plagiarism Detected", [], 0, 100, 0, total_words
+        return "No Plagiarism Detected", [], 0, 100
 
     cosine_similarities = cosine_similarity(vectorized_text, preprocessed_texts)[0]
     plagiarism_sources = []
 
     threshold = 0.35
     total_similarity = 0
-    plagiarized_word_count = 0
-    input_words_set = set(input_text.split())
-
     for i, similarity in enumerate(cosine_similarities):
         if similarity > threshold:
             total_similarity += similarity
@@ -104,27 +100,12 @@ def detect(input_text):
             source_text = data['plagiarized_text'].iloc[i]
             matching_snippets = get_snippets(source_text, input_text)
             plagiarism_sources.append((source_title, plagiarism_percentage, matching_snippets))
-            
-            # Count plagiarized words
-            plagiarized_words = set()
-            for snippet in matching_snippets:
-                plagiarized_words.update(snippet.split())
-            plagiarized_word_count = len(plagiarized_words)
 
-    total_word_count = len(input_words_set)
     plagiarism_sources.sort(key=lambda x: x[1], reverse=True)
     total_plagiarism_percentage = min(round(total_similarity * 100, 2), 100)
-    
-    if total_plagiarism_percentage == 100:
-        unique_word_count = 0
-        plagiarized_word_count = total_word_count
-    else:
-        unique_word_count = total_word_count - plagiarized_word_count
-    
     unique_percentage = 100 - total_plagiarism_percentage
     detection_result = "Plagiarism Detected" if plagiarism_sources else "No Plagiarism Detected"
-    
-    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage, plagiarized_word_count, unique_word_count
+    return detection_result, plagiarism_sources, total_plagiarism_percentage, unique_percentage
 
 def extract_text_from_file(file):
     text = ""
@@ -149,11 +130,12 @@ def plot_pie_chart(plagiarism_percentage, unique_percentage):
     
     pie_chart_path = os.path.join(app.config['UPLOAD_FOLDER'], 'pie_chart.png')
     
+    # Ensure the folder exists
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
 
     plt.savefig(pie_chart_path)
-    plt.close()
+    plt.close()  # Close the plot to avoid display overhead in server logs
     return pie_chart_path
 
 @app.route('/')
@@ -170,7 +152,7 @@ def detect_plagiarism():
             input_text += "\n" + extract_text_from_file(file)
 
     word_count = len(input_text.split())
-    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage, plagiarized_word_count, unique_word_count = detect(input_text)
+    detection_result, plagiarism_sources, plagiarism_percentage, unique_percentage = detect(input_text)
     pie_chart_path = plot_pie_chart(plagiarism_percentage, unique_percentage)
 
     return render_template('index.html', 
@@ -180,9 +162,7 @@ def detect_plagiarism():
                            total_results=len(plagiarism_sources), 
                            plagiarism_percentage=plagiarism_percentage, 
                            unique_percentage=unique_percentage,
-                           pie_chart_path=pie_chart_path,
-                           plagiarized_word_count=plagiarized_word_count,
-                           unique_word_count=unique_word_count)
+                           pie_chart_path=pie_chart_path)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
