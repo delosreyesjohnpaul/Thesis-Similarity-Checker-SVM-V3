@@ -8,6 +8,8 @@ import os
 from werkzeug.utils import secure_filename
 import pymysql
 import re
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive Agg backend for Matplotlib
 import matplotlib.pyplot as plt
 
 app = Flask(__name__)
